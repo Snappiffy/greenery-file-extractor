@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from fastapi.responses import JSONResponse
 from starlette import status
 
@@ -25,6 +25,7 @@ from extractor.application.sample_document import SampleOptions, sample_document
 from extractor.config import Settings, get_settings
 from extractor.domain.errors import InvalidProfileError
 from extractor.domain.profile import Profile
+from extractor.observability.metrics import render_metrics
 
 router = APIRouter()
 
@@ -33,6 +34,13 @@ router = APIRouter()
 def health() -> dict[str, str]:
     """Liveness probe — no auth, no dependencies."""
     return {"status": "ok"}
+
+
+@router.get("/metrics")
+def metrics() -> Response:
+    """Prometheus scrape endpoint (red privada en despliegue)."""
+    payload, content_type = render_metrics()
+    return Response(content=payload, media_type=content_type)
 
 
 @router.get("/ready", dependencies=[Depends(require_bearer)])

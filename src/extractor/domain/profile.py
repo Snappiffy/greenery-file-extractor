@@ -9,6 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from extractor.domain.errors import InvalidProfileError
+from extractor.domain.fingerprint import FingerprintComponents
 
 ColumnRole = Literal[
     "plant_name",
@@ -238,6 +239,7 @@ class Profile(BaseModel):
     grower_id: str | None = None
     version: int = 1
     layout_fingerprint: str | None = None
+    layout_components: FingerprintComponents | None = None
     document: DocumentConfig = Field(default_factory=DocumentConfig)
     table: TableConfig = Field(default_factory=TableConfig)
     columns: list[ColumnConfig]

@@ -21,7 +21,8 @@ from extractor.domain.errors import (
     Sha256MismatchError,
     UnsupportedContentTypeError,
 )
-from extractor.domain.fingerprint import compute_fingerprint
+from extractor.domain.fingerprint import compare_components, compute_fingerprint
+from extractor.domain.issues import IssueCode
 from extractor.domain.models import Diagnostics, Row, Word
 from extractor.domain.profile import Profile
 from extractor.engine.filters import DraftRow, apply_filters, should_stop
@@ -33,6 +34,9 @@ from extractor.engine.parse_rows import count_severity, draft_to_row, issues_by_
 from extractor.engine.strategies import get_strategy
 from extractor.engine.strategies.base import Strategy
 from extractor.engine.strategies.ruling import RulingStrategy
+from extractor.observability.metrics import inc_fingerprint_mismatch
+
+CROSS_BOUNDARY_WARNING_THRESHOLD = 0.02
 
 SUPPORTED_CONTENT_TYPES = frozenset(
     {
@@ -148,17 +152,22 @@ def extract_document(
 
     expected_fp = profile.layout_fingerprint
     matched = expected_fp is None or expected_fp == fp.fingerprint
-    if options.fail_on_fingerprint_mismatch and expected_fp is not None and not matched:
-        raise FingerprintMismatchError(
-            "Document layout does not match the profile fingerprint.",
-            detail={
-                "expected": expected_fp,
-                "actual": fp.fingerprint,
-                "changed": [],
-                "actual_components": fp.components.as_dict(),
-                "hint": "Call POST /v1/sample to rebuild the profile.",
-            },
-        )
+    if expected_fp is not None and not matched:
+        inc_fingerprint_mismatch()
+        if options.fail_on_fingerprint_mismatch:
+            changed: list[str] = []
+            if profile.layout_components is not None:
+                changed = list(compare_components(profile.layout_components, fp.components))
+            raise FingerprintMismatchError(
+                "Document layout does not match the profile fingerprint.",
+                detail={
+                    "expected": expected_fp,
+                    "actual": fp.fingerprint,
+                    "changed": changed,
+                    "actual_components": fp.components.as_dict(),
+                    "hint": "Call POST /v1/sample to rebuild the profile.",
+                },
+            )
 
     selected, skipped = select_pages(pages, profile.document)
     strategy = get_strategy(profile.table.strategy)
@@ -208,12 +217,13 @@ def extract_document(
         )
 
     err_count, warn_count = count_severity(rows)
+    issue_counts = issues_by_code(rows)
     diagnostics = Diagnostics(
         rows_extracted=len(rows),
         rows_dropped=sum(dropped_by_reason.values()),
         rows_with_errors=err_count,
         rows_with_warnings=warn_count,
-        issues_by_code=issues_by_code(rows),
+        issues_by_code=issue_counts,
         dropped_by_reason=dict(sorted(dropped_by_reason.items())),
         pages_processed=len(selected),
         pages_skipped=skipped,
@@ -221,7 +231,7 @@ def extract_document(
         ocr_mean_confidence=None,
         strategy_used=profile.table.strategy,
         duration_ms=timer.elapsed_ms(started),
-        warnings=[],
+        warnings=_boundary_cross_warnings(rows, issue_counts),
         effective_profile=profile.model_dump(mode="json") if options.include_raw_words else None,
     )
 
@@ -341,6 +351,31 @@ def _drafts_from_ruling(
             )
         )
     return page_drafts
+
+
+def _boundary_cross_warnings(rows: list[Row], issue_counts: dict[str, int]) -> list[str]:
+    """Guarda operativa: >2% de filas con TEXT_CROSSES_BOUNDARY."""
+    if not rows:
+        return []
+    code = IssueCode.TEXT_CROSSES_BOUNDARY.value
+    cross_words = issue_counts.get(code, 0)
+    if cross_words == 0:
+        return []
+    rows_with_cross = sum(
+        1
+        for row in rows
+        if any(issue.code == IssueCode.TEXT_CROSSES_BOUNDARY for issue in row.issues)
+    )
+    ratio = rows_with_cross / len(rows)
+    if ratio <= CROSS_BOUNDARY_WARNING_THRESHOLD:
+        return []
+    percent = ratio * 100.0
+    return [
+        (
+            f"{cross_words} palabras cruzan un limite de columna "
+            f"({percent:.1f}% de las filas) - revisar column_boundaries"
+        )
+    ]
 
 
 def _load_bytes(
