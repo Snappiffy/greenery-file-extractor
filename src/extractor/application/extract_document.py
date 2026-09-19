@@ -10,7 +10,11 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from extractor.adapters.fetch.http_fetcher import Fetcher
+from extractor.adapters.ocr.base import OcrEngine
+from extractor.adapters.ocr.tesseract import TesseractOcr
 from extractor.adapters.readers.base import DocumentReader
+from extractor.adapters.readers.image_reader import ImageReader
+from extractor.adapters.readers.pdf_ocr import ocr_pdf_pages
 from extractor.adapters.readers.pdfplumber_tables import extract_page_tables
 from extractor.domain.errors import (
     DocumentTooLargeError,
@@ -23,12 +27,14 @@ from extractor.domain.errors import (
 )
 from extractor.domain.fingerprint import compare_components, compute_fingerprint
 from extractor.domain.issues import IssueCode
-from extractor.domain.models import Diagnostics, Row, Word
+from extractor.domain.layout import text_density
+from extractor.domain.models import Diagnostics, Page, Row, Word
 from extractor.domain.profile import Profile
 from extractor.engine.filters import DraftRow, apply_filters, should_stop
 from extractor.engine.header import lines_after_header, text_matches_anchor
 from extractor.engine.lines import group_words_into_lines
 from extractor.engine.merge import merge_multiline_rows
+from extractor.engine.ocr_decision import decide_ocr
 from extractor.engine.pages import select_pages
 from extractor.engine.parse_rows import count_severity, draft_to_row, issues_by_code
 from extractor.engine.strategies import get_strategy
@@ -72,6 +78,14 @@ class ExtractOptions:
 
 
 @dataclass(frozen=True)
+class OcrSettings:
+    enabled: bool = False
+    density_threshold: float = 5.0
+    min_confidence: float = 70.0
+    tesseract_cmd: str = "tesseract"
+
+
+@dataclass(frozen=True)
 class LayoutInfo:
     fingerprint: str
     expected_fingerprint: str | None
@@ -105,10 +119,13 @@ def extract_document(
     clock: Clock | None = None,
     engine_version: str = "1.0.0",
     max_document_bytes: int = 52_428_800,
+    ocr_settings: OcrSettings | None = None,
+    ocr_engine: OcrEngine | None = None,
 ) -> ExtractResult:
     """Orquesta el pipeline de extraccion (pasos 1-14)."""
     timer = clock or SystemClock()
     started = time.perf_counter()
+    ocr_cfg = ocr_settings if ocr_settings is not None else OcrSettings()
 
     data = _load_bytes(document, fetcher=fetcher, max_document_bytes=max_document_bytes)
     _verify_sha256(data, document.sha256)
@@ -118,15 +135,17 @@ def extract_document(
             f"Unsupported content type: {document.content_type}",
             detail={"content_type": document.content_type},
         )
-    if document.content_type != "application/pdf":
-        raise UnsupportedContentTypeError(
-            "Only application/pdf is implemented in this milestone.",
-            detail={"content_type": document.content_type},
-        )
 
-    reader = reader_for(document.content_type)
     password = document.password or profile.document.password
-    pages = reader.read(data, password=password)
+    pages, ocr_used = _load_pages(
+        data=data,
+        content_type=document.content_type,
+        password=password,
+        options=options,
+        ocr_cfg=ocr_cfg,
+        reader_for=reader_for,
+        ocr_engine=ocr_engine,
+    )
     if not pages:
         raise DocumentUnreadableError("PDF has zero pages.", detail={"reason": "zero_pages"})
 
@@ -175,7 +194,7 @@ def extract_document(
     dropped_by_reason: dict[str, int] = {}
 
     for page in selected:
-        if profile.table.strategy == "ruling":
+        if profile.table.strategy == "ruling" and not ocr_used:
             page_drafts = _drafts_from_ruling(
                 data=data,
                 page_number=page.number,
@@ -206,6 +225,8 @@ def extract_document(
             row_index=index,
             profile=profile,
             include_bbox=options.include_bbox,
+            ocr_used=ocr_used,
+            ocr_min_confidence=ocr_cfg.min_confidence,
         )
         for index, draft in enumerate(draft_rows)
     ]
@@ -227,8 +248,8 @@ def extract_document(
         dropped_by_reason=dict(sorted(dropped_by_reason.items())),
         pages_processed=len(selected),
         pages_skipped=skipped,
-        ocr_used=False,
-        ocr_mean_confidence=None,
+        ocr_used=ocr_used,
+        ocr_mean_confidence=_mean_ocr_confidence(pages) if ocr_used else None,
         strategy_used=profile.table.strategy,
         duration_ms=timer.elapsed_ms(started),
         warnings=_boundary_cross_warnings(rows, issue_counts),
@@ -255,6 +276,67 @@ def extract_document(
         rows=rows,
         diagnostics=diagnostics,
     )
+
+
+def _load_pages(
+    *,
+    data: bytes,
+    content_type: str,
+    password: str | None,
+    options: ExtractOptions,
+    ocr_cfg: OcrSettings,
+    reader_for: Callable[[str], DocumentReader],
+    ocr_engine: OcrEngine | None,
+) -> tuple[list[Page], bool]:
+    is_image = content_type.startswith("image/")
+    native_pages: list[Page] = []
+    if is_image:
+        density = 0.0
+    else:
+        native_reader = reader_for(content_type)
+        native_pages = native_reader.read(data, password=password)
+        density = text_density(native_pages)
+
+    decision = decide_ocr(
+        content_type=content_type,
+        density=density,
+        mode=options.ocr,
+        density_threshold=ocr_cfg.density_threshold,
+    )
+    if decision == "unreadable":
+        raise DocumentUnreadableError(
+            "Document has no native text layer and OCR is disabled for this request.",
+            detail={"reason": "no_text_ocr_never", "density": density},
+        )
+    if decision == "native":
+        return native_pages, False
+
+    # decision == "ocr"
+    if not ocr_cfg.enabled:
+        if density > 0.0 and not is_image:
+            # OCR desactivado: seguir con texto nativo si existe capa de texto.
+            return native_pages, False
+        raise DocumentUnreadableError(
+            "OCR is required for this document but OCR_ENABLED is false.",
+            detail={"reason": "ocr_disabled", "density": density},
+        )
+    engine = (
+        ocr_engine if ocr_engine is not None else TesseractOcr(tesseract_cmd=ocr_cfg.tesseract_cmd)
+    )
+    if is_image:
+        pages = ImageReader(engine).read(data)
+    else:
+        pages = ocr_pdf_pages(data, engine, password=password)
+    return pages, True
+
+
+def _mean_ocr_confidence(pages: list[Page]) -> float | None:
+    values = [
+        word.confidence for page in pages for word in page.words if word.confidence is not None
+    ]
+    if not values:
+        return None
+    return round(sum(values) / len(values), 1)
 
 
 def _drafts_from_lines(
@@ -291,6 +373,7 @@ def _drafts_from_lines(
     for line, (cells, geom_issues) in zip(typed_kept, cut, strict=True):
         cell_map = {cell.role: cell.raw for cell in cells}
         role_map: dict[str, str] = {col.role: cell_map.get(col.role, "") for col in profile.columns}
+        confidences = [word.confidence for word in line.words if word.confidence is not None]
         page_drafts.append(
             DraftRow(
                 page=page_number,
@@ -301,6 +384,7 @@ def _drafts_from_lines(
                 bottom=line.bottom,
                 x0=line.x0,
                 x1=line.x1,
+                ocr_confidences=confidences,
             )
         )
     return page_drafts

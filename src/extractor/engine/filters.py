@@ -23,6 +23,7 @@ class DraftRow:
     x1: float = 0.0
     dropped: bool = False
     drop_reason: str | None = None
+    ocr_confidences: list[float] = field(default_factory=list)
 
 
 def should_stop(line_text: str, stop_patterns: list[str]) -> bool:

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "version": 1,
+  "document": {
+    "kind": "pdf",
+    "pages": "all"
+  },
+  "table": {
+    "strategy": "regex",
+    "line_pattern": "^(?P<plant_name>.+?)\\s*\\|\\s*(?P<size>\\d+(?:\\.\\d+)?\\\"?)\\s*\\|\\s*\\$(?P<price>[\\d,]+\\.\\d{2})\\s*\\|\\s*(?P<quantity>\\d+)$",
+    "header_anchor": {
+      "text": "BOTANICAL NAME",
+      "match": "contains",
+      "on_every_page": false,
+      "offset_lines": 0
+    },
+    "stop_patterns": [],
+    "multiline": {
+      "enabled": false
+    }
+  },
+  "columns": [
+    {
+      "role": "plant_name",
+      "index": 0,
+      "required": true
+    },
+    {
+      "role": "size",
+      "index": 1,
+      "required": true
+    },
+    {
+      "role": "price",
+      "index": 2
+    },
+    {
+      "role": "quantity",
+      "index": 3
+    }
+  ],
+  "parsing": {
+    "price": {
+      "strip": [
+        "$",
+        "USD",
+        "ea",
+        "/ea",
+        "each"
+      ]
+    },
+    "size": {
+      "patterns": [
+        {
+          "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*\"",
+          "unit": "in",
+          "dimension": "pot_diameter"
+        }
+      ]
+    }
+  }
+}

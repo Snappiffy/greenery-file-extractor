@@ -76,8 +76,16 @@ ignore_missing_imports = true
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
+module = "pytesseract"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "extractor.adapters.readers.pymupdf_reader"
 # Frontera PyMuPDF: la librería no trae stubs completos.
+disable_error_code = ["no-untyped-call"]
+
+[[tool.mypy.overrides]]
+module = "extractor.adapters.readers.pdf_ocr"
 disable_error_code = ["no-untyped-call"]
 
 [tool.coverage.run]

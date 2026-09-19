@@ -36,6 +36,7 @@ def merge_multiline_rows(rows: list[DraftRow], profile: Profile) -> list[DraftRo
             prev.bottom = max(prev.bottom, row.bottom)
             prev.x0 = min(prev.x0, row.x0)
             prev.x1 = max(prev.x1, row.x1)
+            prev.ocr_confidences.extend(row.ocr_confidences)
             prev.issues.append(
                 make_issue(
                     IssueCode.MULTILINE_JOINED,

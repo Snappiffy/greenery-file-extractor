@@ -15,7 +15,15 @@ from extractor.domain.profile import Profile
 from extractor.engine.filters import DraftRow
 
 
-def draft_to_row(draft: DraftRow, *, row_index: int, profile: Profile, include_bbox: bool) -> Row:
+def draft_to_row(
+    draft: DraftRow,
+    *,
+    row_index: int,
+    profile: Profile,
+    include_bbox: bool,
+    ocr_used: bool = False,
+    ocr_min_confidence: float = 70.0,
+) -> Row:
     text_cfg = profile.parsing.text
     raw = {role: value for role, value in draft.cells.items()}
     text = {role: normalize_text(value, text_cfg) for role, value in raw.items()}
@@ -63,6 +71,19 @@ def draft_to_row(draft: DraftRow, *, row_index: int, profile: Profile, include_b
         grower_code = None
     if notes == "":
         notes = None
+
+    if ocr_used and draft.ocr_confidences:
+        mean_conf = sum(draft.ocr_confidences) / len(draft.ocr_confidences)
+        if mean_conf < ocr_min_confidence:
+            issues.append(
+                make_issue(
+                    IssueCode.OCR_LOW_CONFIDENCE,
+                    detail={
+                        "mean_confidence": round(mean_conf, 1),
+                        "threshold": ocr_min_confidence,
+                    },
+                )
+            )
 
     parsed = ParsedRow(
         plant_name=plant_name,

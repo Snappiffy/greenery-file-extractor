@@ -19,6 +19,7 @@ from extractor.api.serialize import serialize_extract_result, serialize_sample_r
 from extractor.application.extract_document import (
     DocumentInput,
     ExtractOptions,
+    OcrSettings,
     extract_document,
 )
 from extractor.application.sample_document import SampleOptions, sample_document
@@ -147,6 +148,12 @@ def extract(
         reader_for=reader_for,
         engine_version=ENGINE_VERSION,
         max_document_bytes=settings.max_document_bytes,
+        ocr_settings=OcrSettings(
+            enabled=settings.ocr_enabled,
+            density_threshold=settings.ocr_density_threshold,
+            min_confidence=float(settings.ocr_min_confidence),
+            tesseract_cmd=settings.tesseract_cmd,
+        ),
     )
     return serialize_extract_result(result)
 
