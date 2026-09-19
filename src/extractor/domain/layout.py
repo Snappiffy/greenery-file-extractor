@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from extractor.domain.models import Page, Word
+from extractor.domain.models import Line, Page, Word
 
 POINTS_PER_INCH = 72.0
 COLUMN_BUCKET_PT = 3.0
@@ -64,6 +64,31 @@ def find_column_candidates(
                 break
         candidates.append(ColumnCandidate(x=x, support=support, sample=sample))
     return candidates
+
+
+def enrich_candidate_samples(
+    lines: list[Line],
+    candidates: list[ColumnCandidate],
+    *,
+    sample_limit: int = 3,
+    x_tolerance: float = 4.0,
+) -> list[ColumnCandidate]:
+    """Rellena sample con texto de las primeras filas de datos (máx. 3)."""
+    enriched: list[ColumnCandidate] = []
+    for candidate in candidates:
+        samples: list[str] = []
+        for line in lines:
+            if len(samples) >= sample_limit:
+                break
+            for word in line.words:
+                if abs(word.x0 - candidate.x) <= x_tolerance:
+                    if word.text not in samples:
+                        samples.append(word.text)
+                    break
+        enriched.append(
+            ColumnCandidate(x=candidate.x, support=candidate.support, sample=samples[:sample_limit])
+        )
+    return enriched
 
 
 def text_density(pages: list[Page], *, max_pages: int = 3) -> float:

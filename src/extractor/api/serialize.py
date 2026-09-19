@@ -6,15 +6,21 @@ from decimal import Decimal
 
 from extractor.api.schemas import (
     BBoxOut,
+    ColumnCandidateOut,
     DiagnosticsOut,
     ExtractResponse,
     IssueOut,
     LayoutOut,
     ParsedOut,
     RowOut,
+    RulingLinesOut,
+    SampleLineOut,
+    SamplePageOut,
+    SampleResponse,
     SizeOut,
 )
 from extractor.application.extract_document import ExtractResult
+from extractor.application.sample_document import SampleResult
 from extractor.domain.models import Row, Size
 
 
@@ -101,4 +107,34 @@ def _serialize_size(size: Size) -> SizeOut:
         unit=size.unit,
         dimension=size.dimension,
         raw=size.raw,
+    )
+
+
+def serialize_sample_result(result: SampleResult) -> SampleResponse:
+    return SampleResponse(
+        engine_version=result.engine_version,
+        fingerprint=result.fingerprint,
+        page_count=result.page_count,
+        page_geometry=result.page_geometry,
+        is_scanned=result.is_scanned,
+        text_density=result.text_density,
+        recommended_strategy=result.recommended_strategy,
+        pages=[
+            SamplePageOut(
+                number=page.number,
+                lines=[
+                    SampleLineOut(top=line.top, x0=line.x0, x1=line.x1, text=line.text)
+                    for line in page.lines
+                ],
+                column_candidates=[
+                    ColumnCandidateOut(x=c.x, support=c.support, sample=list(c.sample))
+                    for c in page.column_candidates
+                ],
+                ruling_lines=RulingLinesOut(
+                    vertical=list(page.ruling_lines["vertical"]),
+                    horizontal=list(page.ruling_lines["horizontal"]),
+                ),
+            )
+            for page in result.pages
+        ],
     )

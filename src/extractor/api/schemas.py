@@ -122,3 +122,64 @@ class ExtractResponse(BaseModel):
     layout: LayoutOut
     rows: list[RowOut]
     diagnostics: DiagnosticsOut
+
+
+class SampleOptionsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pages: list[int] = Field(default_factory=lambda: [1])
+    max_lines_per_page: int = 120
+    ocr: Literal["never", "auto", "force"] = "auto"
+
+
+class SampleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    document: DocumentRequest
+    options: SampleOptionsRequest = Field(default_factory=SampleOptionsRequest)
+
+
+class ColumnCandidateOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    x: float
+    support: int
+    sample: list[str] = Field(default_factory=list)
+
+
+class SampleLineOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    top: float
+    x0: float
+    x1: float
+    text: str
+
+
+class RulingLinesOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    vertical: list[float]
+    horizontal: list[float]
+
+
+class SamplePageOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    number: int
+    lines: list[SampleLineOut]
+    column_candidates: list[ColumnCandidateOut]
+    ruling_lines: RulingLinesOut
+
+
+class SampleResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    engine_version: str
+    fingerprint: str
+    page_count: int
+    page_geometry: dict[str, float | int]
+    is_scanned: bool
+    text_density: float
+    recommended_strategy: str
+    pages: list[SamplePageOut]

@@ -3,11 +3,23 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import sys
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
+from extractor import ENGINE_VERSION
+from extractor.adapters.readers.pymupdf_reader import PyMuPdfReader
+from extractor.api.serialize import serialize_extract_result, serialize_sample_result
+from extractor.application.extract_document import (
+    DocumentInput,
+    ExtractOptions,
+    extract_document,
+)
+from extractor.application.sample_document import SampleOptions, sample_document
+from extractor.domain.errors import InvalidProfileError
 from extractor.domain.parsing import (
     normalize_text,
     parse_availability,
@@ -18,10 +30,16 @@ from extractor.domain.parsing import (
 from extractor.domain.profile import (
     AvailabilityConfig,
     PriceConfig,
+    Profile,
     QuantityConfig,
     SizeConfig,
     TextConfig,
 )
+
+
+class _NoFetch:
+    def fetch(self, url: str) -> bytes:
+        raise RuntimeError(f"network disabled in CLI: {url}")
 
 
 def _serialize(value: Any) -> Any:
@@ -34,6 +52,15 @@ def _serialize(value: Any) -> Any:
             data["magnitude"] = format(magnitude, "f")
         return data
     return value
+
+
+def _document_from_file(path: Path, content_type: str) -> DocumentInput:
+    data = path.read_bytes()
+    return DocumentInput(
+        content_type=content_type,
+        filename=path.name,
+        inline_base64=base64.b64encode(data).decode("ascii"),
+    )
 
 
 def cmd_parse(args: argparse.Namespace) -> int:
@@ -68,6 +95,45 @@ def cmd_parse(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sample(args: argparse.Namespace) -> int:
+    path = Path(args.file)
+    result = sample_document(
+        document=_document_from_file(path, "application/pdf"),
+        options=SampleOptions(pages=[1], max_lines_per_page=args.max_lines),
+        fetcher=_NoFetch(),
+        reader_for=lambda _ct: PyMuPdfReader(),
+        engine_version=ENGINE_VERSION,
+    )
+    payload = serialize_sample_result(result).model_dump(mode="json")
+    json.dump(payload, sys.stdout, ensure_ascii=False, indent=2)
+    sys.stdout.write("\n")
+    return 0
+
+
+def cmd_extract(args: argparse.Namespace) -> int:
+    path = Path(args.file)
+    profile_path = Path(args.profile)
+    try:
+        profile = Profile.from_payload(json.loads(profile_path.read_text(encoding="utf-8")))
+    except InvalidProfileError:
+        raise
+    except Exception as exc:
+        raise InvalidProfileError(str(exc), detail={}) from exc
+
+    result = extract_document(
+        document=_document_from_file(path, "application/pdf"),
+        profile=profile,
+        options=ExtractOptions(fail_on_fingerprint_mismatch=False),
+        fetcher=_NoFetch(),
+        reader_for=lambda _ct: PyMuPdfReader(),
+        engine_version=ENGINE_VERSION,
+    )
+    payload = serialize_extract_result(result).model_dump(mode="json")
+    json.dump(payload, sys.stdout, ensure_ascii=False, indent=2)
+    sys.stdout.write("\n")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="extractor")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -85,6 +151,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional plant_name when testing size recovery",
     )
     parse_cmd.set_defaults(func=cmd_parse)
+
+    sample_cmd = sub.add_parser("sample", help="Sample layout evidence from a PDF")
+    sample_cmd.add_argument("--file", required=True, help="Path to PDF")
+    sample_cmd.add_argument("--max-lines", type=int, default=120)
+    sample_cmd.set_defaults(func=cmd_sample)
+
+    extract_cmd = sub.add_parser("extract", help="Extract rows with a profile")
+    extract_cmd.add_argument("--file", required=True, help="Path to PDF")
+    extract_cmd.add_argument("--profile", required=True, help="Path to profile JSON")
+    extract_cmd.set_defaults(func=cmd_extract)
 
     return parser
 

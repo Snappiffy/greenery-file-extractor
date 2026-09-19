@@ -14,13 +14,14 @@ from extractor import ENGINE_VERSION, PROFILE_SCHEMA_VERSION
 from extractor.adapters.fetch.http_fetcher import HttpFetcher
 from extractor.adapters.readers.pymupdf_reader import PyMuPdfReader
 from extractor.api.auth import require_bearer
-from extractor.api.schemas import ExtractRequest, ExtractResponse
-from extractor.api.serialize import serialize_extract_result
+from extractor.api.schemas import ExtractRequest, ExtractResponse, SampleRequest, SampleResponse
+from extractor.api.serialize import serialize_extract_result, serialize_sample_result
 from extractor.application.extract_document import (
     DocumentInput,
     ExtractOptions,
     extract_document,
 )
+from extractor.application.sample_document import SampleOptions, sample_document
 from extractor.config import Settings, get_settings
 from extractor.domain.errors import InvalidProfileError
 from extractor.domain.profile import Profile
@@ -140,3 +141,44 @@ def extract(
         max_document_bytes=settings.max_document_bytes,
     )
     return serialize_extract_result(result)
+
+
+@router.post(
+    "/v1/sample",
+    dependencies=[Depends(require_bearer)],
+    response_model=SampleResponse,
+)
+def sample(
+    body: SampleRequest,
+    settings: Settings = Depends(get_settings),
+) -> SampleResponse:
+    """Devuelve evidencia de layout para construir o reparar un perfil."""
+    fetcher = HttpFetcher(
+        allowed_hosts=settings.fetch_allowed_hosts,
+        timeout_seconds=float(settings.fetch_timeout_seconds),
+        max_bytes=settings.max_document_bytes,
+    )
+
+    def reader_for(_content_type: str) -> PyMuPdfReader:
+        return PyMuPdfReader()
+
+    result = sample_document(
+        document=DocumentInput(
+            content_type=body.document.content_type,
+            filename=body.document.filename,
+            url=body.document.url,
+            inline_base64=body.document.inline_base64,
+            sha256=body.document.sha256,
+            password=None,
+        ),
+        options=SampleOptions(
+            pages=list(body.options.pages),
+            max_lines_per_page=body.options.max_lines_per_page,
+            ocr=body.options.ocr,
+        ),
+        fetcher=fetcher,
+        reader_for=reader_for,
+        engine_version=ENGINE_VERSION,
+        max_document_bytes=settings.max_document_bytes,
+    )
+    return serialize_sample_result(result)

@@ -104,13 +104,6 @@ def compare_components(
     return changed
 
 
-def recommend_strategy(column_candidates_count: int) -> str:
-    """Heurística mínima de M2 (M4 la refinará con ruling_lines)."""
-    if column_candidates_count >= 2:
-        return "columns"
-    return "regex"
-
-
 def locate_header_text(
     lines: list[Line],
     *,
@@ -154,7 +147,7 @@ def build_components(
             match=header_match,
         )
     )
-    strategy = recommend_strategy(len(candidates))
+    strategy = "columns" if len(candidates) >= 2 else "regex"
     return FingerprintComponents(
         page_size=f"{page.width:.0f}x{page.height:.0f}",
         rotation=str(page.rotation),

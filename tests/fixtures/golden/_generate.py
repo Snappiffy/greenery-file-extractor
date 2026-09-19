@@ -98,7 +98,7 @@ PROFILE = {
     "document": {"kind": "pdf", "pages": "all"},
     "table": {
         "strategy": "columns",
-        "column_boundaries": [40.0, 250.0, 350.0, 450.0, 560.0],
+        "column_boundaries": [52.0, 268.0, 372.0, 468.0, 560.0],
         "boundary_tolerance": 8.0,
         "header_anchor": {
             "text": "BOTANICAL NAME",
