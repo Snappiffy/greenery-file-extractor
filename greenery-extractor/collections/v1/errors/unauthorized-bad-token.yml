@@ -1,0 +1,37 @@
+info:
+  name: 401 · Bearer incorrecto
+  type: http
+  seq: 2
+  tags:
+    - errors
+    - auth
+
+http:
+  method: GET
+  url: "{{baseUrl}}/v1/version"
+  auth:
+    type: bearer
+    token: "definitely-not-the-shared-secret-value!!"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+  scripts:
+    - type: tests
+      code: |-
+        test("wrong bearer is unauthorized", function () {
+          expect(res.status).to.equal(401);
+          expect(res.body.error.code).to.equal("UNAUTHORIZED");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+
+docs: |-
+  # 401 UNAUTHORIZED — secret incorrecto
+
+  El servicio compara con `secrets.compare_digest` (tiempo constante).
+  Un token de longitud distinta o contenido distinto → 401.

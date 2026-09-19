@@ -1,0 +1,52 @@
+info:
+  name: GET health
+  type: http
+  seq: 1
+  tags:
+    - smoke
+    - ops
+
+http:
+  method: GET
+  url: "{{baseUrl}}/health"
+
+runtime:
+  variables:
+    - name: baseUrl
+      value: http://localhost:8080
+  scripts:
+    - type: tests
+      code: |-
+        test("health returns ok", function () {
+          expect(res.status).to.equal(200);
+          expect(res.body.status).to.equal("ok");
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
+
+docs: |-
+  # GET /health
+
+  **Liveness.** Sin autenticacion y sin dependencias.
+
+  ## Cuando usarlo
+
+  - Comprobar que uvicorn esta arriba.
+  - Probe de orquestadores (Docker/K8s/Railway).
+
+  ## Respuesta esperada
+
+  ```json
+  { "status": "ok" }
+  ```
+
+  HTTP `200` siempre que el proceso responda. No valida PyMuPDF ni tesseract.

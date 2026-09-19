@@ -1,0 +1,20 @@
+opencollection: 1.0.0
+info:
+  name: "greenery-extractor"
+  type: workspace
+
+collections:
+  - name: "v1"
+    path: "collections/v1"
+
+specs:
+
+docs: |-
+  # Workspace greenery-extractor
+
+  Abre esta carpeta como workspace en Bruno.
+
+  Collection **v1** documenta y ejercita la API HTTP del microservicio
+  `extractor` (M0–M4): ops, sample, extract y errores.
+
+  Environment por defecto: **local** (`baseUrl` + `sharedSecret`).

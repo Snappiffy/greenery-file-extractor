@@ -1,0 +1,36 @@
+info:
+  name: 401 · sin Authorization
+  type: http
+  seq: 1
+  tags:
+    - errors
+    - auth
+
+http:
+  method: GET
+  url: "{{baseUrl}}/v1/version"
+  auth:
+    type: none
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+  scripts:
+    - type: tests
+      code: |-
+        test("missing bearer is unauthorized", function () {
+          expect(res.status).to.equal(401);
+          expect(res.body.error.code).to.equal("UNAUTHORIZED");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+
+docs: |-
+  # 401 UNAUTHORIZED — token ausente
+
+  Cualquier endpoint protegido sin cabecera `Authorization` debe responder 401.
+  `/health` es la unica excepcion (no uses este patron ahi).

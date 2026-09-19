@@ -1,0 +1,10 @@
+info:
+  name: sample
+  type: folder
+  seq: 2
+
+docs: |-
+  # POST /v1/sample
+
+  Devuelve **evidencia de layout** (geometria). No interpreta roles de negocio.
+  Usalo para construir o reparar un perfil antes de llamar a extract.

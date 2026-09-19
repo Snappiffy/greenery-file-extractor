@@ -1,0 +1,50 @@
+info:
+  name: Sample · PDF custom (pdfBase64)
+  type: http
+  seq: 2
+  tags:
+    - sample
+    - custom
+
+http:
+  method: POST
+  url: "{{baseUrl}}/v1/sample"
+  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "document": {
+          "content_type": "application/pdf",
+          "inline_base64": "{{pdfBase64}}",
+          "filename": "custom.pdf"
+        },
+        "options": {
+          "pages": [1],
+          "max_lines_per_page": 120,
+          "ocr": "auto"
+        }
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 120000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  # POST /v1/sample — tu PDF
+
+  1. Genera el base64:
+
+     ```bash
+     base64 -i /ruta/a/tu.pdf | tr -d '\n' | pbcopy
+     ```
+
+  2. Pegalo en la variable de environment `pdfBase64`.
+  3. Ejecuta este request.
+  4. Anota `column_candidates`, `recommended_strategy` y texto de cabecera
+     en `pages[0].lines` para armar el perfil.
+
+  Si `pdfBase64` esta vacio, el servidor devolvera error de documento ilegible
+  o validacion fallida.

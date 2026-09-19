@@ -1,0 +1,85 @@
+info:
+  name: Sample · acme-single (golden)
+  type: http
+  seq: 1
+  tags:
+    - sample
+    - golden
+    - smoke
+
+http:
+  method: POST
+  url: "{{baseUrl}}/v1/sample"
+  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "document": {
+          "content_type": "application/pdf",
+          "inline_base64": "{{acmeSinglePdfBase64}}",
+          "filename": "acme-single-catalog.pdf"
+        },
+        "options": {
+          "pages": [1],
+          "max_lines_per_page": 120,
+          "ocr": "auto"
+        }
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+  scripts:
+    - type: tests
+      code: |-
+        test("sample recommends columns", function () {
+          expect(res.status).to.equal(200);
+          expect(res.body.recommended_strategy).to.equal("columns");
+          expect(res.body.pages).to.be.an("array").that.is.not.empty;
+          expect(res.body.pages[0].column_candidates.length).to.be.at.least(2);
+          expect(res.body.fingerprint).to.match(/^sha256:/);
+        });
+    - type: after-response
+      code: |-
+        if (res.status === 200 && res.body.fingerprint) {
+          bru.setEnvVar("lastFingerprint", res.body.fingerprint);
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 60000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  # POST /v1/sample — fixture acme-single
+
+  PDF golden de una pagina con tabla alineada por columnas (`columns`).
+
+  ## Body
+
+  | Campo | Valor |
+  |---|---|
+  | `document.content_type` | `application/pdf` |
+  | `document.inline_base64` | variable `acmeSinglePdfBase64` |
+  | `options.pages` | `[1]` — casi siempre basta |
+  | `options.max_lines_per_page` | `120` — tope de tamano de respuesta |
+  | `options.ocr` | `auto` |
+
+  ## Que mirar en la respuesta
+
+  | Campo | Esperado en este fixture |
+  |---|---|
+  | `recommended_strategy` | `columns` |
+  | `is_scanned` | `false` |
+  | `column_candidates[].x` | ~52, 268, 372, 468 (±4 pt vs profile) |
+  | `ruling_lines.vertical` | `[]` (sin lineas de tabla dibujadas) |
+  | `fingerprint` | `sha256:...` (se guarda en `lastFingerprint`) |
+
+  ## Siguiente paso
+
+  Usar esos `x` como `table.column_boundaries` (mas un margen derecho) y
+  asignar roles en `columns` del perfil → request **Extract · acme-single**.

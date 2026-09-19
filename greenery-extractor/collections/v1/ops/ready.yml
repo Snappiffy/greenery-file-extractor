@@ -1,0 +1,57 @@
+info:
+  name: GET ready
+  type: http
+  seq: 2
+  tags:
+    - smoke
+    - ops
+
+http:
+  method: GET
+  url: "{{baseUrl}}/ready"
+  auth:
+    type: bearer
+    token: "{{authToken}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("ready when pymupdf ok", function () {
+          expect(res.status).to.equal(200);
+          expect(res.body.status).to.equal("ready");
+          expect(res.body.checks.pymupdf).to.equal("ok");
+          expect(res.body.engine_version).to.be.a("string");
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
+
+docs: |-
+  # GET /ready
+
+  **Readiness.** Requiere Bearer. Verifica que PyMuPDF importa; si `OCR_ENABLED=true`,
+  tambien exige que el binario `tesseract` responda a `--version`.
+
+  ## Respuesta OK
+
+  ```json
+  {
+    "status": "ready",
+    "checks": { "pymupdf": "ok" },
+    "engine_version": "1.0.0"
+  }
+  ```
+
+  ## Degradado
+
+  HTTP `503` con `"status": "degraded"` si algun check falla. El cuerpo incluye
+  los mismos `checks` para diagnostico.

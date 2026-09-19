@@ -1,0 +1,53 @@
+info:
+  name: 400 · INVALID_PROFILE
+  type: http
+  seq: 3
+  tags:
+    - errors
+    - extract
+
+http:
+  method: POST
+  url: "{{baseUrl}}/v1/extract"
+  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "document": {
+          "content_type": "application/pdf",
+          "inline_base64": "{{acmeSinglePdfBase64}}",
+          "filename": "catalog.pdf"
+        },
+        "profile": {
+          "schema_version": 1,
+          "version": 1,
+          "this_is_not": "a valid profile"
+        },
+        "options": {
+          "fail_on_fingerprint_mismatch": false
+        }
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+  scripts:
+    - type: tests
+      code: |-
+        test("invalid profile returns 400", function () {
+          expect(res.status).to.equal(400);
+          expect(res.body.error.code).to.equal("INVALID_PROFILE");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 30000
+
+docs: |-
+  # 400 INVALID_PROFILE
+
+  El perfil no valida contra el esquema o es incoherente (roles duplicados,
+  strategy sin campos requeridos, etc.). Ver `docs/03-perfil-de-extraccion.md`.

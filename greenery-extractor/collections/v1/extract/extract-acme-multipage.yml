@@ -1,0 +1,152 @@
+info:
+  name: Extract · acme-multipage (golden)
+  type: http
+  seq: 2
+  tags:
+    - extract
+    - golden
+    - smoke
+
+http:
+  method: POST
+  url: "{{baseUrl}}/v1/extract"
+  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "document": {
+          "content_type": "application/pdf",
+          "inline_base64": "{{acmeMultipagePdfBase64}}",
+          "filename": "catalog.pdf"
+        },
+        "profile": {
+          "schema_version": 1,
+          "version": 1,
+          "document": {
+            "kind": "pdf",
+            "pages": "all"
+          },
+          "table": {
+            "strategy": "columns",
+            "column_boundaries": [
+              52.0,
+              268.0,
+              372.0,
+              468.0,
+              560.0
+            ],
+            "boundary_tolerance": 8.0,
+            "header_anchor": {
+              "text": "BOTANICAL NAME",
+              "match": "contains",
+              "on_every_page": true,
+              "offset_lines": 0
+            },
+            "stop_patterns": [
+              "^\\s*TOTAL\\b"
+            ],
+            "row_tolerance": 3.0,
+            "multiline": {
+              "enabled": true,
+              "continuation_max_gap": 14.0,
+              "join_with": " "
+            }
+          },
+          "columns": [
+            {
+              "role": "plant_name",
+              "index": 0,
+              "required": true
+            },
+            {
+              "role": "size",
+              "index": 1,
+              "required": true
+            },
+            {
+              "role": "price",
+              "index": 2
+            },
+            {
+              "role": "quantity",
+              "index": 3
+            }
+          ],
+          "parsing": {
+            "price": {
+              "strip": [
+                "$",
+                "USD",
+                "ea",
+                "/ea",
+                "each"
+              ]
+            },
+            "size": {
+              "patterns": [
+                {
+                  "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*\"",
+                  "unit": "in",
+                  "dimension": "pot_diameter"
+                },
+                {
+                  "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*in\\b",
+                  "unit": "in",
+                  "dimension": "pot_diameter"
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "ocr": "auto",
+          "max_pages": 200,
+          "include_bbox": true,
+          "include_raw_words": false,
+          "fail_on_fingerprint_mismatch": false
+        }
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+  scripts:
+    - type: tests
+      code: |-
+        test("extract returns rows", function () {
+          expect(res.status).to.equal(200);
+          expect(res.body.rows).to.be.an("array").that.is.not.empty;
+          expect(res.body.diagnostics.strategy_used).to.equal("columns");
+          expect(res.body.layout.fingerprint).to.match(/^sha256:/);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 120000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  # POST /v1/extract — fixture acme-multipage
+
+  Usa el PDF y el `profile.json` de `tests/fixtures/golden/acme-multipage/`.
+
+  ## Options importantes
+
+  | Option | Valor aqui | Nota |
+  |---|---|---|
+  | `fail_on_fingerprint_mismatch` | `false` | Evita 409 al depurar |
+  | `include_bbox` | `true` | Ver geometria de cada fila |
+  | `include_raw_words` | `false` | Solo depuracion profunda |
+
+  ## Que mirar
+
+  - `rows[].raw` / `text` — texto por columna
+  - `rows[].parsed` — tipado (`price` como **string**, `quantity` int o `null`)
+  - `rows[].issues` — filas malas no tumban la request
+  - `diagnostics.rows_extracted`, `issues_by_code`, `duration_ms`
+
+  Recuerda: **`None` ≠ `0`** en quantity/price ausentes.

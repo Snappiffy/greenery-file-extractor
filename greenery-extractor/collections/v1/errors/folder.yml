@@ -1,0 +1,10 @@
+info:
+  name: errors
+  type: folder
+  seq: 4
+
+docs: |-
+  # Casos de error
+
+  Requests que deben fallar. Sirven para verificar codigos HTTP y el envelope
+  `error.code` / `error.message` / `error.detail`.

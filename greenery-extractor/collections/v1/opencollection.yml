@@ -1,0 +1,86 @@
+opencollection: 1.0.0
+
+info:
+  name: v1
+  summary: greenery-extractor HTTP API — health, sample y extract
+  version: "1.0.0"
+  authors:
+    - name: Snappiffy
+
+bundled: false
+
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git
+    defaultEnvironment: local
+
+request:
+  headers:
+    - name: Content-Type
+      value: application/json
+      description: Todos los POST usan JSON (no multipart)
+    - name: Accept
+      value: application/json
+  auth:
+    type: bearer
+    token: "{{sharedSecret}}"
+
+docs: |-
+  # greenery-extractor · collection v1
+
+  Microservicio **sin estado** que convierte PDF (e imagenes) de listas de precios
+  en filas estructuradas, guiado por un **perfil de extraccion**.
+
+  ## Como usar esta collection
+
+  1. Abre el workspace `greenery-extractor` en Bruno.
+  2. Selecciona el environment **local**.
+  3. Pon en `sharedSecret` el mismo valor que `EXTRACTOR_SHARED_SECRET` de tu `.env`
+     (minimo 32 caracteres).
+  4. Arranca el servicio:
+
+     ```bash
+     uv run uvicorn extractor.api.app:app --reload --port 8080
+     ```
+
+  5. Ejecuta en orden: **ops → sample → extract**. Los requests de **errors**
+     provocan fallos a proposito para validar el contrato.
+
+  ## Autenticacion
+
+  Cabecera `Authorization: Bearer <EXTRACTOR_SHARED_SECRET>` en **todo** endpoint
+  excepto `GET /health`. La collection hereda Bearer desde el nivel raiz
+  (`{{sharedSecret}}`). `health` anula auth con `type: none`.
+
+  ## Flujo recomendado con un PDF nuevo
+
+  1. `POST /v1/sample` → mirar `column_candidates`, `recommended_strategy`, `fingerprint`.
+  2. Armar / ajustar un `profile` (boundaries ≈ candidatos ±4 pt).
+  3. `POST /v1/extract` con `fail_on_fingerprint_mismatch: false` al principio.
+  4. Revisar `rows`, `issues` y `diagnostics` (un `200` no implica calidad perfecta).
+
+  ## Documento: url vs inline_base64
+
+  Exactamente **uno** de los dos:
+
+  - `inline_base64` — ideal en local (esta collection lo usa con fixtures golden).
+  - `url` — HTTPS firmada; el host debe estar en `FETCH_ALLOWED_HOSTS`.
+
+  `content_type` es obligatorio y manda (no se infiere por extension). Hoy lo util
+  local es `application/pdf`.
+
+  ## Errores
+
+  Cuerpo siempre:
+
+  ```json
+  { "error": { "code": "...", "message": "...", "detail": {} } }
+  ```
+
+  Codigos habituales: `UNAUTHORIZED`, `INVALID_PROFILE`, `INVALID_REQUEST`,
+  `FINGERPRINT_MISMATCH`, `DOCUMENT_UNREADABLE`, `NO_ROWS_FOUND`,
+  `UNSUPPORTED_CONTENT_TYPE`, `SOURCE_FETCH_FAILED`.
+
+  Contrato completo: `docs/02-contrato-api.md` en el repo.

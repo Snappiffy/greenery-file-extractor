@@ -1,0 +1,11 @@
+info:
+  name: extract
+  type: folder
+  seq: 3
+
+docs: |-
+  # POST /v1/extract
+
+  Aplica un **perfil** al documento y devuelve filas + diagnosticos.
+  Un HTTP 200 significa que el documento se pudo leer; la calidad se mide en
+  `diagnostics` e `issues` por fila.

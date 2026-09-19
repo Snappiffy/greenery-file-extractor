@@ -1,0 +1,126 @@
+info:
+  name: Extract · PDF custom (pdfBase64 + perfil plantilla)
+  type: http
+  seq: 4
+  tags:
+    - extract
+    - custom
+
+http:
+  method: POST
+  url: "{{baseUrl}}/v1/extract"
+  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "document": {
+          "content_type": "application/pdf",
+          "inline_base64": "{{pdfBase64}}",
+          "filename": "custom.pdf"
+        },
+        "profile": {
+          "schema_version": 1,
+          "version": 1,
+          "document": {
+            "kind": "pdf",
+            "pages": "all"
+          },
+          "table": {
+            "strategy": "columns",
+            "column_boundaries": [
+              52.0,
+              268.0,
+              372.0,
+              468.0,
+              560.0
+            ],
+            "boundary_tolerance": 8.0,
+            "header_anchor": {
+              "text": "BOTANICAL NAME",
+              "match": "contains",
+              "on_every_page": true,
+              "offset_lines": 0
+            },
+            "stop_patterns": [
+              "^\\s*TOTAL\\b"
+            ],
+            "row_tolerance": 3.0,
+            "multiline": {
+              "enabled": true,
+              "continuation_max_gap": 14.0,
+              "join_with": " "
+            }
+          },
+          "columns": [
+            {
+              "role": "plant_name",
+              "index": 0,
+              "required": true
+            },
+            {
+              "role": "size",
+              "index": 1,
+              "required": true
+            },
+            {
+              "role": "price",
+              "index": 2
+            },
+            {
+              "role": "quantity",
+              "index": 3
+            }
+          ],
+          "parsing": {
+            "price": {
+              "strip": [
+                "$",
+                "USD",
+                "ea",
+                "/ea",
+                "each"
+              ]
+            },
+            "size": {
+              "patterns": [
+                {
+                  "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*\"",
+                  "unit": "in",
+                  "dimension": "pot_diameter"
+                },
+                {
+                  "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*in\\b",
+                  "unit": "in",
+                  "dimension": "pot_diameter"
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "ocr": "auto",
+          "max_pages": 200,
+          "include_bbox": true,
+          "include_raw_words": false,
+          "fail_on_fingerprint_mismatch": false
+        }
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 120000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  # POST /v1/extract — tu PDF
+
+  1. Completa `pdfBase64` en el environment (igual que en Sample custom).
+  2. Ajusta el `profile` del body:
+     - `table.column_boundaries` desde los `x` de `/v1/sample`
+     - `header_anchor.text` con una frase real de tu cabecera
+     - `columns` / `parsing` segun el grower
+  3. Empieza con `fail_on_fingerprint_mismatch: false`.
+  4. Si `raw` sale bien pero `parsed` mal → tuning de parsers.
+     Si `raw` ya viene mezclado → retoca boundaries / tolerancia.
