@@ -69,10 +69,14 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = [
-    "fitz",
-]
+module = "pymupdf"
 ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "extractor.adapters.readers.pymupdf_reader"
+# Frontera PyMuPDF: la librería no trae stubs completos.
+disable_error_code = ["no-untyped-call"]
 
 [tool.coverage.run]
 source = ["src/extractor"]

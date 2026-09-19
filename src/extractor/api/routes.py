@@ -28,7 +28,7 @@ def ready(settings: Settings = Depends(get_settings)) -> JSONResponse:
     checks: dict[str, str] = {}
 
     try:
-        import fitz  # noqa: F401
+        import pymupdf  # noqa: F401
 
         checks["pymupdf"] = "ok"
     except Exception:

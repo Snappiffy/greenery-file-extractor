@@ -18,6 +18,7 @@ FORBIDDEN: dict[str, set[str]] = {
         "extractor.api",
         "fastapi",
         "fitz",
+        "pymupdf",
         "pdfplumber",
         "httpx",
         "PIL",
@@ -29,6 +30,7 @@ FORBIDDEN: dict[str, set[str]] = {
         "extractor.application",
         "fastapi",
         "fitz",
+        "pymupdf",
         "pdfplumber",
         "httpx",
     },
@@ -36,6 +38,7 @@ FORBIDDEN: dict[str, set[str]] = {
         "extractor.api",
         "fastapi",
         "fitz",
+        "pymupdf",
         "pdfplumber",
     },
     "adapters": {

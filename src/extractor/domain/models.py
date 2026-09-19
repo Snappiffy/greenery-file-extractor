@@ -72,6 +72,18 @@ class Size(BaseModel):
         }
 
 
+class Page(BaseModel):
+    """Página con geometría y palabras en orden determinista."""
+
+    model_config = ConfigDict(frozen=True)
+
+    number: int
+    width: float
+    height: float
+    rotation: int = 0
+    words: list[Word] = Field(default_factory=list)
+
+
 class BBox(BaseModel):
     """Rectángulo de una fila en la página."""
 
@@ -141,6 +153,7 @@ __all__ = [
     "Issue",
     "IssueCode",
     "Line",
+    "Page",
     "ParsedRow",
     "Row",
     "Severity",
