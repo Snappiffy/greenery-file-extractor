@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 import subprocess
+import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from starlette import status
 
@@ -14,21 +16,35 @@ from extractor import ENGINE_VERSION, PROFILE_SCHEMA_VERSION
 from extractor.adapters.fetch.http_fetcher import HttpFetcher
 from extractor.adapters.readers.pymupdf_reader import PyMuPdfReader
 from extractor.api.auth import require_bearer
+from extractor.api.concurrency import ConcurrencyLimiter
+from extractor.api.guards import run_guarded
 from extractor.api.schemas import ExtractRequest, ExtractResponse, SampleRequest, SampleResponse
 from extractor.api.serialize import serialize_extract_result, serialize_sample_result
 from extractor.application.extract_document import (
     DocumentInput,
     ExtractOptions,
+    ExtractResult,
     OcrSettings,
     extract_document,
 )
-from extractor.application.sample_document import SampleOptions, sample_document
+from extractor.application.sample_document import SampleOptions, SampleResult, sample_document
 from extractor.config import Settings, get_settings
 from extractor.domain.errors import InvalidProfileError
+from extractor.domain.issues import SEVERITY_BY_CODE, IssueCode
 from extractor.domain.profile import Profile
-from extractor.observability.metrics import render_metrics
+from extractor.observability.metrics import (
+    observe_duration,
+    observe_issue,
+    observe_rows_extracted,
+    render_metrics,
+)
 
 router = APIRouter()
+logger = logging.getLogger("extractor.api")
+
+
+def _limiter(request: Request) -> ConcurrencyLimiter:
+    return request.app.state.concurrency_limiter  # type: ignore[no-any-return]
 
 
 @router.get("/health")
@@ -108,6 +124,7 @@ def version() -> dict[str, Any]:
 )
 def extract(
     body: ExtractRequest,
+    request: Request,
     settings: Settings = Depends(get_settings),
 ) -> ExtractResponse:
     """Extrae filas aplicando el perfil."""
@@ -127,33 +144,65 @@ def extract(
     def reader_for(_content_type: str) -> PyMuPdfReader:
         return PyMuPdfReader()
 
-    result = extract_document(
-        document=DocumentInput(
-            content_type=body.document.content_type,
-            filename=body.document.filename,
-            url=body.document.url,
-            inline_base64=body.document.inline_base64,
-            sha256=body.document.sha256,
-            password=profile.document.password,
-        ),
-        profile=profile,
-        options=ExtractOptions(
-            ocr=body.options.ocr,
-            max_pages=min(body.options.max_pages, settings.max_pages),
-            include_bbox=body.options.include_bbox,
-            include_raw_words=body.options.include_raw_words,
-            fail_on_fingerprint_mismatch=body.options.fail_on_fingerprint_mismatch,
-        ),
-        fetcher=fetcher,
-        reader_for=reader_for,
-        engine_version=ENGINE_VERSION,
-        max_document_bytes=settings.max_document_bytes,
-        ocr_settings=OcrSettings(
-            enabled=settings.ocr_enabled,
-            density_threshold=settings.ocr_density_threshold,
-            min_confidence=float(settings.ocr_min_confidence),
-            tesseract_cmd=settings.tesseract_cmd,
-        ),
+    def _run() -> ExtractResult:
+        return extract_document(
+            document=DocumentInput(
+                content_type=body.document.content_type,
+                filename=body.document.filename,
+                url=body.document.url,
+                inline_base64=body.document.inline_base64,
+                sha256=body.document.sha256,
+                password=profile.document.password,
+            ),
+            profile=profile,
+            options=ExtractOptions(
+                ocr=body.options.ocr,
+                max_pages=min(body.options.max_pages, settings.max_pages),
+                include_bbox=body.options.include_bbox,
+                include_raw_words=body.options.include_raw_words,
+                fail_on_fingerprint_mismatch=body.options.fail_on_fingerprint_mismatch,
+            ),
+            fetcher=fetcher,
+            reader_for=reader_for,
+            engine_version=ENGINE_VERSION,
+            max_document_bytes=settings.max_document_bytes,
+            ocr_settings=OcrSettings(
+                enabled=settings.ocr_enabled,
+                density_threshold=settings.ocr_density_threshold,
+                min_confidence=float(settings.ocr_min_confidence),
+                tesseract_cmd=settings.tesseract_cmd,
+            ),
+        )
+
+    started = time.perf_counter()
+    result = run_guarded(
+        limiter=_limiter(request),
+        timeout_seconds=float(settings.extraction_timeout_seconds),
+        fn=_run,
+    )
+    elapsed = time.perf_counter() - started
+    strategy = result.diagnostics.strategy_used or profile.table.strategy
+    ocr_label = "true" if result.diagnostics.ocr_used else "false"
+    observe_duration(endpoint="/v1/extract", strategy=strategy, ocr=ocr_label, seconds=elapsed)
+    observe_rows_extracted(strategy=strategy, rows=result.diagnostics.rows_extracted)
+    for code, count in result.diagnostics.issues_by_code.items():
+        observe_issue(code=code, severity=_severity_for_code(code), count=count)
+
+    logger.info(
+        "extract.completed",
+        extra={
+            "extra_fields": {
+                "grower_id": profile.grower_id,
+                "profile_version": profile.version,
+                "content_type": body.document.content_type,
+                "pages": result.layout.pages_processed,
+                "rows_extracted": result.diagnostics.rows_extracted,
+                "rows_with_errors": result.diagnostics.rows_with_errors,
+                "strategy": strategy,
+                "ocr_used": result.diagnostics.ocr_used,
+                "duration_ms": result.diagnostics.duration_ms,
+            }
+        },
     )
     return serialize_extract_result(result)
 
@@ -165,6 +214,7 @@ def extract(
 )
 def sample(
     body: SampleRequest,
+    request: Request,
     settings: Settings = Depends(get_settings),
 ) -> SampleResponse:
     """Devuelve evidencia de layout para construir o reparar un perfil."""
@@ -177,23 +227,45 @@ def sample(
     def reader_for(_content_type: str) -> PyMuPdfReader:
         return PyMuPdfReader()
 
-    result = sample_document(
-        document=DocumentInput(
-            content_type=body.document.content_type,
-            filename=body.document.filename,
-            url=body.document.url,
-            inline_base64=body.document.inline_base64,
-            sha256=body.document.sha256,
-            password=None,
-        ),
-        options=SampleOptions(
-            pages=list(body.options.pages),
-            max_lines_per_page=body.options.max_lines_per_page,
-            ocr=body.options.ocr,
-        ),
-        fetcher=fetcher,
-        reader_for=reader_for,
-        engine_version=ENGINE_VERSION,
-        max_document_bytes=settings.max_document_bytes,
+    def _run() -> SampleResult:
+        return sample_document(
+            document=DocumentInput(
+                content_type=body.document.content_type,
+                filename=body.document.filename,
+                url=body.document.url,
+                inline_base64=body.document.inline_base64,
+                sha256=body.document.sha256,
+                password=None,
+            ),
+            options=SampleOptions(
+                pages=list(body.options.pages),
+                max_lines_per_page=body.options.max_lines_per_page,
+                ocr=body.options.ocr,
+            ),
+            fetcher=fetcher,
+            reader_for=reader_for,
+            engine_version=ENGINE_VERSION,
+            max_document_bytes=settings.max_document_bytes,
+        )
+
+    started = time.perf_counter()
+    result = run_guarded(
+        limiter=_limiter(request),
+        timeout_seconds=float(settings.extraction_timeout_seconds),
+        fn=_run,
+    )
+    elapsed = time.perf_counter() - started
+    observe_duration(
+        endpoint="/v1/sample",
+        strategy=result.recommended_strategy,
+        ocr="false",
+        seconds=elapsed,
     )
     return serialize_sample_result(result)
+
+
+def _severity_for_code(code: str) -> str:
+    try:
+        return SEVERITY_BY_CODE[IssueCode(code)].value
+    except (KeyError, ValueError):
+        return "warning"

@@ -1,0 +1,15 @@
+# Railway: servicio privado. El worker usa el hostname interno de Railway
+# (p. ej. extractor.railway.internal), sin dominio público.
+#
+# Variables requeridas: EXTRACTOR_SHARED_SECRET, FETCH_ALLOWED_HOSTS.
+# Ver docs/08-despliegue.md.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

@@ -6,10 +6,24 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 
+from extractor.api.concurrency import ConcurrencyLimiter
 from extractor.api.error_handlers import register_error_handlers
 from extractor.api.logging import configure_logging, new_request_id, request_id_var
 from extractor.api.routes import router
 from extractor.config import Settings, get_settings
+from extractor.observability.metrics import observe_request
+
+
+def _endpoint_label(path: str) -> str:
+    if path.startswith("/v1/extract"):
+        return "/v1/extract"
+    if path.startswith("/v1/sample"):
+        return "/v1/sample"
+    if path.startswith("/v1/version"):
+        return "/v1/version"
+    if path in {"/health", "/ready", "/metrics"}:
+        return path
+    return "other"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -19,6 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="greenery-extractor", version="1.0.0")
     app.state.settings = resolved
+    app.state.concurrency_limiter = ConcurrencyLimiter(resolved.max_concurrency)
     app.dependency_overrides[get_settings] = lambda: resolved
 
     register_error_handlers(app)
@@ -35,6 +50,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             response = await call_next(request)
             response.headers["X-Request-Id"] = request_id
+            observe_request(
+                endpoint=_endpoint_label(request.url.path),
+                status=response.status_code,
+            )
             return response
         finally:
             request_id_var.reset(token)

@@ -75,6 +75,12 @@ class ExtractionTimeoutError(ExtractorError):
     code = "EXTRACTION_TIMEOUT"
 
 
+class ConcurrencyLimitError(ExtractorError):
+    """La instancia ya tiene MAX_CONCURRENCY extracciones en curso."""
+
+    code = "CONCURRENCY_LIMIT"
+
+
 class InvalidRequestError(ExtractorError):
     """La petición HTTP es inválida (campos faltantes o excluyentes)."""
 

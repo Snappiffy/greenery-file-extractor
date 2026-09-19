@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from extractor.domain.errors import (
+    ConcurrencyLimitError,
     DocumentTooLargeError,
     DocumentUnreadableError,
     ExtractionTimeoutError,
@@ -33,6 +34,7 @@ _STATUS_BY_ERROR: dict[type[ExtractorError], int] = {
     Sha256MismatchError: 422,
     NoRowsFoundError: 422,
     SourceFetchFailedError: 502,
+    ConcurrencyLimitError: 503,
     ExtractionTimeoutError: 504,
 }
 
@@ -51,9 +53,14 @@ def register_error_handlers(app: FastAPI) -> None:
             if isinstance(exc, error_type):
                 status = code
                 break
+        headers: dict[str, str] | None = None
+        if isinstance(exc, ConcurrencyLimitError):
+            retry_after = exc.detail.get("retry_after", 5)
+            headers = {"Retry-After": str(retry_after)}
         return JSONResponse(
             status_code=status,
             content=_error_body(exc.code, exc.message, exc.detail),
+            headers=headers,
         )
 
     @app.exception_handler(StarletteHTTPException)
