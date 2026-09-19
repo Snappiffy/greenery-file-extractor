@@ -11,6 +11,7 @@ from typing import Literal, Protocol
 
 from extractor.adapters.fetch.http_fetcher import Fetcher
 from extractor.adapters.readers.base import DocumentReader
+from extractor.adapters.readers.pdfplumber_tables import extract_page_tables
 from extractor.domain.errors import (
     DocumentTooLargeError,
     DocumentUnreadableError,
@@ -21,15 +22,17 @@ from extractor.domain.errors import (
     UnsupportedContentTypeError,
 )
 from extractor.domain.fingerprint import compute_fingerprint
-from extractor.domain.models import Diagnostics, Row
+from extractor.domain.models import Diagnostics, Row, Word
 from extractor.domain.profile import Profile
 from extractor.engine.filters import DraftRow, apply_filters, should_stop
-from extractor.engine.header import lines_after_header
+from extractor.engine.header import lines_after_header, text_matches_anchor
 from extractor.engine.lines import group_words_into_lines
 from extractor.engine.merge import merge_multiline_rows
 from extractor.engine.pages import select_pages
 from extractor.engine.parse_rows import count_severity, draft_to_row, issues_by_code
 from extractor.engine.strategies import get_strategy
+from extractor.engine.strategies.base import Strategy
+from extractor.engine.strategies.ruling import RulingStrategy
 
 SUPPORTED_CONTENT_TYPES = frozenset(
     {
@@ -163,45 +166,20 @@ def extract_document(
     dropped_by_reason: dict[str, int] = {}
 
     for page in selected:
-        lines = group_words_into_lines(
-            page.words,
-            page=page.number,
-            row_tolerance=profile.table.row_tolerance,
-        )
-        use_header = profile.table.header_anchor is not None and (
-            profile.table.header_anchor.on_every_page or page.number == 1
-        )
-        data_lines = (
-            lines_after_header(lines, profile.table.header_anchor) if use_header else list(lines)
-        )
-
-        typed_kept = []
-        for line in data_lines:
-            if should_stop(line.text, profile.table.stop_patterns):
-                dropped_by_reason["matched_stop_pattern"] = (
-                    dropped_by_reason.get("matched_stop_pattern", 0) + 1
-                )
-                break
-            typed_kept.append(line)
-
-        cut = strategy.cut(typed_kept, profile)
-        page_drafts: list[DraftRow] = []
-        for line, (cells, geom_issues) in zip(typed_kept, cut, strict=True):
-            cell_map = {cell.role: cell.raw for cell in cells}
-            role_map: dict[str, str] = {
-                col.role: cell_map.get(col.role, "") for col in profile.columns
-            }
-            page_drafts.append(
-                DraftRow(
-                    page=page.number,
-                    source_lines=[line.line_index],
-                    cells=role_map,
-                    issues=list(geom_issues),
-                    top=line.top,
-                    bottom=line.bottom,
-                    x0=line.x0,
-                    x1=line.x1,
-                )
+        if profile.table.strategy == "ruling":
+            page_drafts = _drafts_from_ruling(
+                data=data,
+                page_number=page.number,
+                profile=profile,
+                dropped_by_reason=dropped_by_reason,
+            )
+        else:
+            page_drafts = _drafts_from_lines(
+                page_number=page.number,
+                words=page.words,
+                profile=profile,
+                strategy=strategy,
+                dropped_by_reason=dropped_by_reason,
             )
 
         page_drafts = merge_multiline_rows(page_drafts, profile)
@@ -267,6 +245,102 @@ def extract_document(
         rows=rows,
         diagnostics=diagnostics,
     )
+
+
+def _drafts_from_lines(
+    *,
+    page_number: int,
+    words: list[Word],
+    profile: Profile,
+    strategy: Strategy,
+    dropped_by_reason: dict[str, int],
+) -> list[DraftRow]:
+    lines = group_words_into_lines(
+        words,
+        page=page_number,
+        row_tolerance=profile.table.row_tolerance,
+    )
+    use_header = profile.table.header_anchor is not None and (
+        profile.table.header_anchor.on_every_page or page_number == 1
+    )
+    data_lines = (
+        lines_after_header(lines, profile.table.header_anchor) if use_header else list(lines)
+    )
+
+    typed_kept = []
+    for line in data_lines:
+        if should_stop(line.text, profile.table.stop_patterns):
+            dropped_by_reason["matched_stop_pattern"] = (
+                dropped_by_reason.get("matched_stop_pattern", 0) + 1
+            )
+            break
+        typed_kept.append(line)
+
+    cut = strategy.cut(typed_kept, profile)
+    page_drafts: list[DraftRow] = []
+    for line, (cells, geom_issues) in zip(typed_kept, cut, strict=True):
+        cell_map = {cell.role: cell.raw for cell in cells}
+        role_map: dict[str, str] = {col.role: cell_map.get(col.role, "") for col in profile.columns}
+        page_drafts.append(
+            DraftRow(
+                page=page_number,
+                source_lines=[line.line_index],
+                cells=role_map,
+                issues=list(geom_issues),
+                top=line.top,
+                bottom=line.bottom,
+                x0=line.x0,
+                x1=line.x1,
+            )
+        )
+    return page_drafts
+
+
+def _drafts_from_ruling(
+    *,
+    data: bytes,
+    page_number: int,
+    profile: Profile,
+    dropped_by_reason: dict[str, int],
+) -> list[DraftRow]:
+    ruling = get_strategy("ruling")
+    if not isinstance(ruling, RulingStrategy):
+        raise TypeError("ruling strategy is not registered")
+    tables = extract_page_tables(data, page_number=page_number, ruling=profile.table.ruling)
+    table_rows = ruling.cut_tables(tables, profile)
+
+    use_header = profile.table.header_anchor is not None and (
+        profile.table.header_anchor.on_every_page or page_number == 1
+    )
+    start = 0
+    anchor = profile.table.header_anchor
+    if use_header and anchor is not None:
+        header_index: int | None = None
+        for index, (_cells, _issues, joined) in enumerate(table_rows):
+            if text_matches_anchor(joined, anchor):
+                header_index = index
+                break
+        if header_index is not None:
+            start = header_index + 1 + anchor.offset_lines
+
+    page_drafts: list[DraftRow] = []
+    for row_index, (cells, geom_issues, joined) in enumerate(table_rows[start:], start=start):
+        if should_stop(joined, profile.table.stop_patterns):
+            dropped_by_reason["matched_stop_pattern"] = (
+                dropped_by_reason.get("matched_stop_pattern", 0) + 1
+            )
+            break
+        cell_map = {cell.role: cell.raw for cell in cells}
+        role_map: dict[str, str] = {col.role: cell_map.get(col.role, "") for col in profile.columns}
+        page_drafts.append(
+            DraftRow(
+                page=page_number,
+                source_lines=[row_index],
+                cells=role_map,
+                issues=list(geom_issues),
+            )
+        )
+    return page_drafts
 
 
 def _load_bytes(

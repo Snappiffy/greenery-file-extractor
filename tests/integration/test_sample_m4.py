@@ -30,6 +30,15 @@ def _golden_dirs() -> list[Path]:
     )
 
 
+def _columns_golden_dirs() -> list[Path]:
+    dirs: list[Path] = []
+    for path in _golden_dirs():
+        profile = json.loads((path / "profile.json").read_text(encoding="utf-8"))
+        if profile.get("table", {}).get("strategy") == "columns":
+            dirs.append(path)
+    return dirs
+
+
 def _run_sample(folder: Path) -> object:
     pdf = (folder / "catalog.pdf").read_bytes()
     return sample_document(
@@ -44,10 +53,10 @@ def _run_sample(folder: Path) -> object:
     )
 
 
-@pytest.mark.parametrize("folder", _golden_dirs(), ids=lambda p: p.name)
+@pytest.mark.parametrize("folder", _columns_golden_dirs(), ids=lambda p: p.name)
 def test_column_candidates_match_profile_boundaries(folder: Path) -> None:
     profile = Profile.from_payload(json.loads((folder / "profile.json").read_text()))
-    boundaries = list(profile.table.column_boundaries)
+    boundaries = list(profile.table.column_boundaries or [])
     # El último límite es el margen derecho; no tiene texto anclado.
     left_edges = boundaries[:-1]
 
@@ -61,12 +70,26 @@ def test_column_candidates_match_profile_boundaries(folder: Path) -> None:
         assert nearest <= TOLERANCE_PT, f"{folder.name}: edge {edge} nearest delta {nearest}"
 
 
-@pytest.mark.parametrize("folder", _golden_dirs(), ids=lambda p: p.name)
+@pytest.mark.parametrize("folder", _columns_golden_dirs(), ids=lambda p: p.name)
 def test_recommended_strategy_is_columns(folder: Path) -> None:
     profile = Profile.from_payload(json.loads((folder / "profile.json").read_text()))
     assert profile.table.strategy == "columns"
     result = _run_sample(folder)
     assert result.recommended_strategy == "columns"
+
+
+def test_recommended_strategy_is_ruling_for_ruled_fixture() -> None:
+    folder = GOLDEN_ROOT / "acme-ruling"
+    result = _run_sample(folder)
+    assert result.recommended_strategy == "ruling"
+    assert result.pages[0].ruling_lines["vertical"]
+
+
+def test_line_fixture_has_no_ruling_lines() -> None:
+    """Fixture regex: sin líneas dibujadas (sample no fuerza ruling)."""
+    folder = GOLDEN_ROOT / "acme-regex"
+    result = _run_sample(folder)
+    assert result.pages[0].ruling_lines["vertical"] == []
 
 
 @pytest.mark.parametrize("folder", _golden_dirs(), ids=lambda p: p.name)

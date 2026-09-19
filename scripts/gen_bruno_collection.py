@@ -996,7 +996,7 @@ docs: |-
               Abre esta carpeta como workspace en Bruno.
 
               Collection **v1** documenta y ejercita la API HTTP del microservicio
-              `extractor` (M0–M4): ops, sample, extract y errores.
+              `extractor` (M0-M5): ops, sample, extract y errores.
 
               Environment por defecto: **local** (`baseUrl` + `sharedSecret`).
             """

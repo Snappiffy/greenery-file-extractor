@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "version": 1,
+  "document": {
+    "kind": "pdf",
+    "pages": "all"
+  },
+  "table": {
+    "strategy": "ruling",
+    "ruling": {
+      "vertical_strategy": "lines",
+      "horizontal_strategy": "lines",
+      "snap_tolerance": 3.0
+    },
+    "header_anchor": {
+      "text": "Item",
+      "match": "contains",
+      "on_every_page": true,
+      "offset_lines": 0
+    },
+    "stop_patterns": [],
+    "multiline": {
+      "enabled": false
+    }
+  },
+  "columns": [
+    {
+      "role": "grower_code",
+      "index": 0
+    },
+    {
+      "role": "plant_name",
+      "index": 1,
+      "required": true
+    },
+    {
+      "role": "size",
+      "index": 2,
+      "required": true
+    },
+    {
+      "role": "price",
+      "index": 3
+    },
+    {
+      "role": "availability",
+      "index": 4
+    }
+  ],
+  "parsing": {
+    "price": {
+      "strip": [
+        "$",
+        "USD",
+        "ea",
+        "/ea",
+        "each"
+      ]
+    },
+    "size": {
+      "patterns": [
+        {
+          "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*\"",
+          "unit": "in",
+          "dimension": "pot_diameter"
+        },
+        {
+          "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*in\\b",
+          "unit": "in",
+          "dimension": "pot_diameter"
+        }
+      ]
+    },
+    "availability": {
+      "true_values": [
+        "yes",
+        "y",
+        "available",
+        "in stock",
+        "avail",
+        "x"
+      ],
+      "false_values": [
+        "no",
+        "n",
+        "sold out",
+        "so",
+        "unavailable",
+        "none",
+        "0"
+      ],
+      "empty_means": "true"
+    }
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "engine_version": "1.0.0",
+  "profile_version": 1,
+  "layout": {
+    "fingerprint": "sha256:83f352e4f45311a22bfff2a913a1622e",
+    "expected_fingerprint": null,
+    "matched": true,
+    "page_count": 1,
+    "pages_processed": 1,
+    "page_geometry": {
+      "width": 612.0,
+      "height": 792.0,
+      "rotation": 0
+    }
+  },
+  "rows": [
+    {
+      "row_index": 0,
+      "page": 1,
+      "source_lines": [
+        1
+      ],
+      "raw": {
+        "grower_code": "ACM-0001",
+        "plant_name": "Ficus lyrata",
+        "size": "10\"",
+        "price": "42.50",
+        "quantity": "12"
+      },
+      "text": {
+        "grower_code": "ACM-0001",
+        "plant_name": "Ficus lyrata",
+        "size": "10\"",
+        "price": "42.50",
+        "quantity": "12"
+      },
+      "parsed": {
+        "plant_name": "Ficus lyrata",
+        "size": {
+          "magnitude": "10",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "10\""
+        },
+        "price": "42.50",
+        "quantity": 12,
+        "availability": null,
+        "grower_code": "ACM-0001",
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 52.0,
+        "top": 110.3,
+        "x1": 201.8,
+        "bottom": 122.7
+      }
+    },
+    {
+      "row_index": 1,
+      "page": 1,
+      "source_lines": [
+        2
+      ],
+      "raw": {
+        "grower_code": "ACM-0002",
+        "plant_name": "Monstera deliciosa",
+        "size": "14\"",
+        "price": "68.00",
+        "quantity": "4"
+      },
+      "text": {
+        "grower_code": "ACM-0002",
+        "plant_name": "Monstera deliciosa",
+        "size": "14\"",
+        "price": "68.00",
+        "quantity": "4"
+      },
+      "parsed": {
+        "plant_name": "Monstera deliciosa",
+        "size": {
+          "magnitude": "14",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "14\""
+        },
+        "price": "68.00",
+        "quantity": 4,
+        "availability": null,
+        "grower_code": "ACM-0002",
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 52.0,
+        "top": 126.3,
+        "x1": 225.8,
+        "bottom": 138.7
+      }
+    },
+    {
+      "row_index": 2,
+      "page": 1,
+      "source_lines": [
+        3
+      ],
+      "raw": {
+        "grower_code": "ACM-0003",
+        "plant_name": "Dracaena marginata",
+        "size": "10\"",
+        "price": "35.00",
+        "quantity": "8"
+      },
+      "text": {
+        "grower_code": "ACM-0003",
+        "plant_name": "Dracaena marginata",
+        "size": "10\"",
+        "price": "35.00",
+        "quantity": "8"
+      },
+      "parsed": {
+        "plant_name": "Dracaena marginata",
+        "size": {
+          "magnitude": "10",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "10\""
+        },
+        "price": "35.00",
+        "quantity": 8,
+        "availability": null,
+        "grower_code": "ACM-0003",
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 52.0,
+        "top": 142.3,
+        "x1": 232.3,
+        "bottom": 154.7
+      }
+    },
+    {
+      "row_index": 3,
+      "page": 1,
+      "source_lines": [
+        4
+      ],
+      "raw": {
+        "grower_code": "ACM-0004",
+        "plant_name": "Pothos golden",
+        "size": "6\"",
+        "price": "12.50",
+        "quantity": "30"
+      },
+      "text": {
+        "grower_code": "ACM-0004",
+        "plant_name": "Pothos golden",
+        "size": "6\"",
+        "price": "12.50",
+        "quantity": "30"
+      },
+      "parsed": {
+        "plant_name": "Pothos golden",
+        "size": {
+          "magnitude": "6",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "6\""
+        },
+        "price": "12.50",
+        "quantity": 30,
+        "availability": null,
+        "grower_code": "ACM-0004",
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 52.0,
+        "top": 158.3,
+        "x1": 208.3,
+        "bottom": 170.7
+      }
+    }
+  ],
+  "diagnostics": {
+    "rows_extracted": 4,
+    "rows_dropped": 0,
+    "rows_with_errors": 0,
+    "rows_with_warnings": 0,
+    "issues_by_code": {},
+    "dropped_by_reason": {},
+    "pages_processed": 1,
+    "pages_skipped": [],
+    "ocr_used": false,
+    "ocr_mean_confidence": null,
+    "strategy_used": "regex",
+    "duration_ms": 0,
+    "warnings": [],
+    "effective_profile": null
+  }
+}

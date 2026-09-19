@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "version": 1,
+  "document": {
+    "kind": "pdf",
+    "pages": "all"
+  },
+  "table": {
+    "strategy": "regex",
+    "line_pattern": "^(?P<grower_code>[A-Z]{3}-\\d{4})\\s+(?P<plant_name>.+?)\\s+(?P<size>\\d+(?:\\.\\d+)?\\\"?)\\s+\\$(?P<price>[\\d,]+\\.\\d{2})\\s+(?P<quantity>\\d+|-)$",
+    "header_anchor": {
+      "text": "ACME CATALOG",
+      "match": "contains",
+      "on_every_page": false,
+      "offset_lines": 0
+    },
+    "stop_patterns": [],
+    "multiline": {
+      "enabled": false
+    }
+  },
+  "columns": [
+    {
+      "role": "grower_code",
+      "index": 0
+    },
+    {
+      "role": "plant_name",
+      "index": 1,
+      "required": true
+    },
+    {
+      "role": "size",
+      "index": 2,
+      "required": true
+    },
+    {
+      "role": "price",
+      "index": 3
+    },
+    {
+      "role": "quantity",
+      "index": 4
+    }
+  ],
+  "parsing": {
+    "price": {
+      "strip": [
+        "$",
+        "USD",
+        "ea",
+        "/ea",
+        "each"
+      ]
+    },
+    "size": {
+      "patterns": [
+        {
+          "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*\"",
+          "unit": "in",
+          "dimension": "pot_diameter"
+        },
+        {
+          "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*in\\b",
+          "unit": "in",
+          "dimension": "pot_diameter"
+        }
+      ]
+    }
+  }
+}

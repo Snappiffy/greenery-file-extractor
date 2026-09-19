@@ -1,0 +1,206 @@
+{
+  "engine_version": "1.0.0",
+  "profile_version": 1,
+  "layout": {
+    "fingerprint": "sha256:08e69cf4cc0cb7375338ab783f50b998",
+    "expected_fingerprint": null,
+    "matched": true,
+    "page_count": 1,
+    "pages_processed": 1,
+    "page_geometry": {
+      "width": 612.0,
+      "height": 792.0,
+      "rotation": 0
+    }
+  },
+  "rows": [
+    {
+      "row_index": 0,
+      "page": 1,
+      "source_lines": [
+        1
+      ],
+      "raw": {
+        "grower_code": "A-1",
+        "plant_name": "Ficus lyrata",
+        "size": "10\"",
+        "price": "$42.50",
+        "availability": "Yes"
+      },
+      "text": {
+        "grower_code": "A-1",
+        "plant_name": "Ficus lyrata",
+        "size": "10\"",
+        "price": "$42.50",
+        "availability": "Yes"
+      },
+      "parsed": {
+        "plant_name": "Ficus lyrata",
+        "size": {
+          "magnitude": "10",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "10\""
+        },
+        "price": "42.50",
+        "quantity": null,
+        "availability": true,
+        "grower_code": "A-1",
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 0.0,
+        "top": 0.0,
+        "x1": 0.0,
+        "bottom": 0.0
+      }
+    },
+    {
+      "row_index": 1,
+      "page": 1,
+      "source_lines": [
+        2
+      ],
+      "raw": {
+        "grower_code": "A-2",
+        "plant_name": "Monstera deliciosa",
+        "size": "14\"",
+        "price": "$68.00",
+        "availability": "No"
+      },
+      "text": {
+        "grower_code": "A-2",
+        "plant_name": "Monstera deliciosa",
+        "size": "14\"",
+        "price": "$68.00",
+        "availability": "No"
+      },
+      "parsed": {
+        "plant_name": "Monstera deliciosa",
+        "size": {
+          "magnitude": "14",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "14\""
+        },
+        "price": "68.00",
+        "quantity": null,
+        "availability": false,
+        "grower_code": "A-2",
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 0.0,
+        "top": 0.0,
+        "x1": 0.0,
+        "bottom": 0.0
+      }
+    },
+    {
+      "row_index": 2,
+      "page": 1,
+      "source_lines": [
+        3
+      ],
+      "raw": {
+        "grower_code": "A-3",
+        "plant_name": "Dracaena marginata",
+        "size": "10\"",
+        "price": "$35.00",
+        "availability": "Yes"
+      },
+      "text": {
+        "grower_code": "A-3",
+        "plant_name": "Dracaena marginata",
+        "size": "10\"",
+        "price": "$35.00",
+        "availability": "Yes"
+      },
+      "parsed": {
+        "plant_name": "Dracaena marginata",
+        "size": {
+          "magnitude": "10",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "10\""
+        },
+        "price": "35.00",
+        "quantity": null,
+        "availability": true,
+        "grower_code": "A-3",
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 0.0,
+        "top": 0.0,
+        "x1": 0.0,
+        "bottom": 0.0
+      }
+    },
+    {
+      "row_index": 3,
+      "page": 1,
+      "source_lines": [
+        4
+      ],
+      "raw": {
+        "grower_code": "A-4",
+        "plant_name": "Pothos golden",
+        "size": "6\"",
+        "price": "$12.50",
+        "availability": "Yes"
+      },
+      "text": {
+        "grower_code": "A-4",
+        "plant_name": "Pothos golden",
+        "size": "6\"",
+        "price": "$12.50",
+        "availability": "Yes"
+      },
+      "parsed": {
+        "plant_name": "Pothos golden",
+        "size": {
+          "magnitude": "6",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "6\""
+        },
+        "price": "12.50",
+        "quantity": null,
+        "availability": true,
+        "grower_code": "A-4",
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 0.0,
+        "top": 0.0,
+        "x1": 0.0,
+        "bottom": 0.0
+      }
+    }
+  ],
+  "diagnostics": {
+    "rows_extracted": 4,
+    "rows_dropped": 0,
+    "rows_with_errors": 0,
+    "rows_with_warnings": 0,
+    "issues_by_code": {},
+    "dropped_by_reason": {},
+    "pages_processed": 1,
+    "pages_skipped": [],
+    "ocr_used": false,
+    "ocr_mean_confidence": null,
+    "strategy_used": "ruling",
+    "duration_ms": 0,
+    "warnings": [],
+    "effective_profile": null
+  }
+}

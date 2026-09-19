@@ -50,6 +50,30 @@ def test_invalid_profile(client: TestClient, auth_headers: dict[str, str]) -> No
     assert response.json()["error"]["code"] == "INVALID_PROFILE"
 
 
+def test_regex_profile_missing_named_group(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    profile = {
+        "schema_version": 1,
+        "version": 1,
+        "document": {"kind": "pdf", "pages": "all"},
+        "table": {
+            "strategy": "regex",
+            "line_pattern": r"^(?P<plant_name>.+)$",
+            "multiline": {"enabled": False},
+        },
+        "columns": [
+            {"role": "plant_name", "index": 0, "required": True},
+            {"role": "size", "index": 1, "required": True},
+        ],
+    }
+    response = client.post("/v1/extract", headers=auth_headers, json=_inline_body(profile))
+    assert response.status_code == 400
+    body = response.json()["error"]
+    assert body["code"] == "INVALID_PROFILE"
+    assert body["detail"]["role"] == "size"
+
+
 def test_invalid_request_both_sources(client: TestClient, auth_headers: dict[str, str]) -> None:
     profile = json.loads(GOLDEN_PROFILE.read_text())
     body = _inline_body(profile)
