@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "version": 1,
+  "document": {
+    "kind": "pdf",
+    "pages": "all"
+  },
+  "table": {
+    "strategy": "columns",
+    "column_boundaries": [
+      40.0,
+      250.0,
+      350.0,
+      450.0,
+      560.0
+    ],
+    "boundary_tolerance": 8.0,
+    "header_anchor": {
+      "text": "BOTANICAL NAME",
+      "match": "contains",
+      "on_every_page": true,
+      "offset_lines": 0
+    },
+    "stop_patterns": [
+      "^\\s*TOTAL\\b"
+    ],
+    "row_tolerance": 3.0,
+    "multiline": {
+      "enabled": true,
+      "continuation_max_gap": 14.0,
+      "join_with": " "
+    }
+  },
+  "columns": [
+    {
+      "role": "plant_name",
+      "index": 0,
+      "required": true
+    },
+    {
+      "role": "size",
+      "index": 1,
+      "required": true
+    },
+    {
+      "role": "price",
+      "index": 2
+    },
+    {
+      "role": "quantity",
+      "index": 3
+    }
+  ],
+  "parsing": {
+    "price": {
+      "strip": [
+        "$",
+        "USD",
+        "ea",
+        "/ea",
+        "each"
+      ]
+    },
+    "size": {
+      "patterns": [
+        {
+          "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*\"",
+          "unit": "in",
+          "dimension": "pot_diameter"
+        },
+        {
+          "regex": "(?P<v>\\d+(?:\\.\\d+)?)\\s*in\\b",
+          "unit": "in",
+          "dimension": "pot_diameter"
+        }
+      ]
+    }
+  }
+}

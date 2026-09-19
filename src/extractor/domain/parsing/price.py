@@ -88,9 +88,12 @@ def _to_decimal(raw: str, config: PriceConfig) -> Decimal | None:
         cleaned = cleaned.replace(config.decimal_separator, ".")
     cleaned = cleaned.strip()
     try:
-        return Decimal(cleaned)
+        value = Decimal(cleaned)
     except (InvalidOperation, ValueError):
         return None
+    if not value.is_finite():
+        return None
+    return value
 
 
 def _finalize(
@@ -98,7 +101,17 @@ def _finalize(
     config: PriceConfig,
     issues: list[Issue],
 ) -> tuple[Decimal | None, list[Issue]]:
-    quantized = value.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+    try:
+        quantized = value.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+    except InvalidOperation:
+        return None, [
+            *issues,
+            make_issue(
+                IssueCode.PRICE_UNPARSEABLE,
+                field="price",
+                detail=f"unparseable price: {value}",
+            ),
+        ]
     if quantized < 0:
         issues.append(
             make_issue(

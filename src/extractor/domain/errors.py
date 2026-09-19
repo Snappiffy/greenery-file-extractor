@@ -73,3 +73,9 @@ class ExtractionTimeoutError(ExtractorError):
     """La extracción superó el timeout configurado."""
 
     code = "EXTRACTION_TIMEOUT"
+
+
+class InvalidRequestError(ExtractorError):
+    """La petición HTTP es inválida (campos faltantes o excluyentes)."""
+
+    code = "INVALID_REQUEST"

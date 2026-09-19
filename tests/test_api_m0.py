@@ -49,10 +49,12 @@ def test_extract_without_bearer_returns_401(client: TestClient) -> None:
     assert response.json()["error"]["code"] == "UNAUTHORIZED"
 
 
-def test_extract_with_bearer_returns_501(client: TestClient, auth_headers: dict[str, str]) -> None:
+def test_extract_with_bearer_invalid_body_returns_400(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
     response = client.post("/v1/extract", headers=auth_headers, json={})
-    assert response.status_code == 501
-    assert response.json()["error"]["code"] == "NOT_IMPLEMENTED"
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
 
 
 def test_extract_with_wrong_bearer_returns_401(client: TestClient) -> None:

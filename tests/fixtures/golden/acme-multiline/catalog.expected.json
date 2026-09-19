@@ -1,0 +1,167 @@
+{
+  "engine_version": "1.0.0",
+  "profile_version": 1,
+  "layout": {
+    "fingerprint": "sha256:e3c91b1b9104156704aa5ba1c9676960",
+    "expected_fingerprint": null,
+    "matched": true,
+    "page_count": 1,
+    "pages_processed": 1,
+    "page_geometry": {
+      "width": 612.0,
+      "height": 792.0,
+      "rotation": 0
+    }
+  },
+  "rows": [
+    {
+      "row_index": 0,
+      "page": 1,
+      "source_lines": [
+        2
+      ],
+      "raw": {
+        "plant_name": "Ficus lyrata",
+        "size": "10\"",
+        "price": "$42.50",
+        "quantity": "12"
+      },
+      "text": {
+        "plant_name": "Ficus lyrata",
+        "size": "10\"",
+        "price": "$42.50",
+        "quantity": "12"
+      },
+      "parsed": {
+        "plant_name": "Ficus lyrata",
+        "size": {
+          "magnitude": "10",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "10\""
+        },
+        "price": "42.50",
+        "quantity": 12,
+        "availability": null,
+        "grower_code": null,
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 52.0,
+        "top": 130.3,
+        "x1": 478.0,
+        "bottom": 142.7
+      }
+    },
+    {
+      "row_index": 1,
+      "page": 1,
+      "source_lines": [
+        3,
+        4
+      ],
+      "raw": {
+        "plant_name": "Dracaena marginata 'Colorama' Character Specimen",
+        "size": "14\"",
+        "price": "$68.00",
+        "quantity": "4"
+      },
+      "text": {
+        "plant_name": "Dracaena marginata 'Colorama' Character Specimen",
+        "size": "14\"",
+        "price": "$68.00",
+        "quantity": "4"
+      },
+      "parsed": {
+        "plant_name": "Dracaena marginata 'Colorama' Character Specimen",
+        "size": {
+          "magnitude": "14",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "14\""
+        },
+        "price": "68.00",
+        "quantity": 4,
+        "availability": null,
+        "grower_code": null,
+        "notes": null
+      },
+      "issues": [
+        {
+          "code": "MULTILINE_JOINED",
+          "severity": "info",
+          "field": "plant_name",
+          "detail": "joined continuation line into plant_name"
+        }
+      ],
+      "bbox": {
+        "page": 1,
+        "x0": 52.0,
+        "top": 146.3,
+        "x1": 473.0,
+        "bottom": 170.7
+      }
+    },
+    {
+      "row_index": 2,
+      "page": 1,
+      "source_lines": [
+        5
+      ],
+      "raw": {
+        "plant_name": "Monstera deliciosa",
+        "size": "10\"",
+        "price": "$35.00",
+        "quantity": "8"
+      },
+      "text": {
+        "plant_name": "Monstera deliciosa",
+        "size": "10\"",
+        "price": "$35.00",
+        "quantity": "8"
+      },
+      "parsed": {
+        "plant_name": "Monstera deliciosa",
+        "size": {
+          "magnitude": "10",
+          "unit": "in",
+          "dimension": "pot_diameter",
+          "raw": "10\""
+        },
+        "price": "35.00",
+        "quantity": 8,
+        "availability": null,
+        "grower_code": null,
+        "notes": null
+      },
+      "issues": [],
+      "bbox": {
+        "page": 1,
+        "x0": 52.0,
+        "top": 174.3,
+        "x1": 473.0,
+        "bottom": 186.7
+      }
+    }
+  ],
+  "diagnostics": {
+    "rows_extracted": 3,
+    "rows_dropped": 0,
+    "rows_with_errors": 0,
+    "rows_with_warnings": 0,
+    "issues_by_code": {
+      "MULTILINE_JOINED": 1
+    },
+    "dropped_by_reason": {},
+    "pages_processed": 1,
+    "pages_skipped": [],
+    "ocr_used": false,
+    "ocr_mean_confidence": null,
+    "strategy_used": "columns",
+    "duration_ms": 0,
+    "warnings": [],
+    "effective_profile": null
+  }
+}

@@ -6,12 +6,24 @@ import shutil
 import subprocess
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from starlette import status
 
 from extractor import ENGINE_VERSION, PROFILE_SCHEMA_VERSION
+from extractor.adapters.fetch.http_fetcher import HttpFetcher
+from extractor.adapters.readers.pymupdf_reader import PyMuPdfReader
 from extractor.api.auth import require_bearer
+from extractor.api.schemas import ExtractRequest, ExtractResponse
+from extractor.api.serialize import serialize_extract_result
+from extractor.application.extract_document import (
+    DocumentInput,
+    ExtractOptions,
+    extract_document,
+)
 from extractor.config import Settings, get_settings
+from extractor.domain.errors import InvalidProfileError
+from extractor.domain.profile import Profile
 
 router = APIRouter()
 
@@ -79,16 +91,52 @@ def version() -> dict[str, Any]:
     }
 
 
-@router.post("/v1/extract", dependencies=[Depends(require_bearer)])
-def extract(_request: Request) -> None:
-    """Extraction endpoint — implemented in a later milestone."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail={
-            "error": {
-                "code": "NOT_IMPLEMENTED",
-                "message": "POST /v1/extract is not implemented yet.",
-                "detail": {},
-            }
-        },
+@router.post(
+    "/v1/extract",
+    dependencies=[Depends(require_bearer)],
+    response_model=ExtractResponse,
+)
+def extract(
+    body: ExtractRequest,
+    settings: Settings = Depends(get_settings),
+) -> ExtractResponse:
+    """Extrae filas aplicando el perfil."""
+    try:
+        profile = Profile.from_payload(body.profile)
+    except InvalidProfileError:
+        raise
+    except Exception as exc:
+        raise InvalidProfileError(str(exc), detail={}) from exc
+
+    fetcher = HttpFetcher(
+        allowed_hosts=settings.fetch_allowed_hosts,
+        timeout_seconds=float(settings.fetch_timeout_seconds),
+        max_bytes=settings.max_document_bytes,
     )
+
+    def reader_for(_content_type: str) -> PyMuPdfReader:
+        return PyMuPdfReader()
+
+    result = extract_document(
+        document=DocumentInput(
+            content_type=body.document.content_type,
+            filename=body.document.filename,
+            url=body.document.url,
+            inline_base64=body.document.inline_base64,
+            sha256=body.document.sha256,
+            password=profile.document.password,
+        ),
+        profile=profile,
+        options=ExtractOptions(
+            ocr=body.options.ocr,
+            max_pages=min(body.options.max_pages, settings.max_pages),
+            include_bbox=body.options.include_bbox,
+            include_raw_words=body.options.include_raw_words,
+            fail_on_fingerprint_mismatch=body.options.fail_on_fingerprint_mismatch,
+        ),
+        fetcher=fetcher,
+        reader_for=reader_for,
+        engine_version=ENGINE_VERSION,
+        max_document_bytes=settings.max_document_bytes,
+    )
+    return serialize_extract_result(result)
