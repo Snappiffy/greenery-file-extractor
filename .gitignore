@@ -33,3 +33,5 @@ dist/
 
 # Snapshots / local artifacts
 *.log
+tmp_*.json
+tmp_*.pdf
