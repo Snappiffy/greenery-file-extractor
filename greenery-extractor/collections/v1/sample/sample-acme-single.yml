@@ -10,7 +10,6 @@ info:
 http:
   method: POST
   url: "{{baseUrl}}/v1/sample"
-  auth: inherit
   body:
     type: json
     data: |-
@@ -26,13 +25,17 @@ http:
           "ocr": "auto"
         }
       }
+  auth:
+    type: bearer
+    token: "{{authToken}}"
 
 runtime:
-  assertions:
-    - expression: res.status
-      operator: eq
-      value: "200"
   scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200 && res.body.fingerprint) {
+          bru.setEnvVar("lastFingerprint", res.body.fingerprint);
+        }
     - type: tests
       code: |-
         test("sample recommends columns", function () {
@@ -42,17 +45,17 @@ runtime:
           expect(res.body.pages[0].column_candidates.length).to.be.at.least(2);
           expect(res.body.fingerprint).to.match(/^sha256:/);
         });
-    - type: after-response
-      code: |-
-        if (res.status === 200 && res.body.fingerprint) {
-          bru.setEnvVar("lastFingerprint", res.body.fingerprint);
-        }
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
 
 settings:
   encodeUrl: true
   timeout: 60000
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
 
 docs: |-
   # POST /v1/sample — fixture acme-single
